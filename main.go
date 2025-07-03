@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -60,14 +61,16 @@ func initialModel() model {
 }
 
 func (m model) Init() tea.Cmd {
+	slog.Info("m.Init()", "currentDir", m.currentDir)
 	return discoverTests(m.currentDir)
 }
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if m.showingResult {
 			switch msg.String() {
-			case "q", "ctrl+c", "esc":
+			case "q", "ctrl+c", "esc", "h":
 				m.showingResult = false
 				m.testResult = nil
 				return m, nil
@@ -86,7 +89,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.cursor < len(m.tests)-1 {
 				m.cursor++
 			}
-		case "enter":
+		case "enter", "l":
 			if len(m.tests) > 0 {
 				selected := m.tests[m.cursor]
 				if selected.IsDir {
@@ -103,7 +106,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.loading = true
 			m.cursor = 0
 			return m, discoverTests(m.currentDir)
-		case "backspace":
+		case "backspace", "h":
 			if m.currentDir != "." {
 				parent := filepath.Dir(m.currentDir)
 				if parent == "." || parent == "/" {
@@ -270,21 +273,28 @@ func findTests(rootDir string) ([]TestItem, error) {
 
 	err := filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
+			slog.Info("there is some error walking the path", "path", path, "err", err)
 			return err
 		}
 
 		if path == rootDir {
+			slog.Info("we are in the rootdir", "path", path)
 			return nil
 		}
 
+		// skip hidden dirs and ignore files starting with a dot
 		if strings.HasPrefix(filepath.Base(path), ".") {
 			if info.IsDir() {
+				slog.Info("we are in a dir that starts with a dot, skipping", "path", path)
 				return filepath.SkipDir
 			}
+			slog.Info("this is a file, that starts with a dot", "path", path)
 			return nil
 		}
 
+		// skip vendor dir, don't want to test stuff there
 		if info.IsDir() && filepath.Base(path) == "vendor" {
+			slog.Info("skipping the vendor dir", "path", path)
 			return filepath.SkipDir
 		}
 
@@ -306,6 +316,7 @@ func findTests(rootDir string) ([]TestItem, error) {
 			Name:  filepath.Base(path),
 			IsDir: info.IsDir(),
 		}
+		slog.Info("just created a new TestItem", "item", item)
 
 		if info.IsDir() {
 			item.HasTests = hasTestFiles(path)
@@ -314,6 +325,7 @@ func findTests(rootDir string) ([]TestItem, error) {
 		}
 
 		if item.IsDir || item.HasTests {
+			slog.Info("item is a dir and has tests", "item", item, "path", path)
 			items = append(items, item)
 		}
 
@@ -338,6 +350,12 @@ func hasTestFiles(dir string) bool {
 }
 
 func main() {
+	f, err := tea.LogToFile("debug.log", "debug")
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
 	startDir := "."
 	if len(os.Args) > 1 {
 		startDir = os.Args[1]
