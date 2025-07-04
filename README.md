@@ -1,5 +1,13 @@
 # Go Test Runner
 
+__The base of the project is AI generated, which I'm in the process of rewriting. I didn't really check all the stuff the AI spew out in the readme, so don't take it as an honest description of the project!__
+
+What I want is a test runner for Go that I can run in a split screen next to my terminal editor and is a little bit more nice than just simply running the Go CLI command.
+
+AI generated stuff below the line
+
+---
+
 A terminal UI application for finding and running Go tests with an intuitive interface.
 
 ## Features
@@ -24,12 +32,12 @@ go build .
 
 Run the application in the current directory:
 ```bash
-./gotest-runner
+./glue
 ```
 
 Or specify a directory:
 ```bash
-./gotest-runner /path/to/your/go/project
+./glue /path/to/your/go/project
 ```
 
 ## Controls
